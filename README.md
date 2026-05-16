@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>गाँव-वार खाता बही (चावल=तमी, बाकी=kg, कपड़ा=नाम)</title>
+    <title>गाँव-वार खाता बही (JSON फाइल शेयर)</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
@@ -43,7 +43,7 @@
             flex-wrap: wrap;
             gap: 12px;
             align-items: end;
-            margin-bottom: 35px;
+            margin-bottom: 25px;
         }
         .input-group {
             display: flex;
@@ -79,9 +79,9 @@
         }
         .action-buttons {
             display: flex;
-            gap: 20px;
+            gap: 12px;
             justify-content: center;
-            margin: 15px 0 25px;
+            margin: 15px 0 20px;
             flex-wrap: wrap;
         }
         .export-btn {
@@ -89,6 +89,9 @@
         }
         .pdf-btn {
             background: #aa2e1c;
+        }
+        .json-export {
+            background: #1e6f9f;
         }
         .village-card {
             border: 1px solid #c9e0bb;
@@ -157,6 +160,39 @@
             font-size: 13px;
             color: #4b6043;
         }
+        .import-section {
+            background: #fef3c7;
+            padding: 12px 18px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+            justify-content: center;
+        }
+        .file-input-label {
+            background: #9b6b1e;
+            color: white;
+            padding: 8px 20px;
+            border-radius: 40px;
+            cursor: pointer;
+            font-weight: bold;
+            display: inline-block;
+        }
+        .file-input-label:hover {
+            background: #7a5217;
+        }
+        #fileInput {
+            display: none;
+        }
+        .status-msg {
+            font-size: 12px;
+            color: #2c5e2e;
+            background: #e0f0dc;
+            padding: 6px 12px;
+            border-radius: 20px;
+        }
         @media (max-width: 850px) {
             .input-group { width: 100%; }
             form { flex-direction: column; }
@@ -168,7 +204,17 @@
 <body>
 <div class="container">
     <h1>📒 गाँव-वार हिसाब बही</h1>
-    <div class="sub">🌾 चावल = <strong>तमी</strong> | दाल, आलू, गोभी, सब्जी = <strong>kg</strong> | 👕 कपड़ा = <strong>कपड़ा</strong> (बिना यूनिट) | + पैसा (₹) + 📅 दिनांक</div>
+    <div class="sub">🌾 चावल = <strong>तमी</strong> | दाल, आलू, गोभी, सब्जी = <strong>kg</strong> | 👕 कपड़ा | + पैसा + 📅 दिनांक</div>
+
+    <!-- JSON इम्पोर्ट सेक्शन -->
+    <div class="import-section">
+        <label class="file-input-label">
+            📂 JSON फाइल से इम्पोर्ट करें
+            <input type="file" id="fileInput" accept=".json" style="display:none">
+        </label>
+        <span id="importStatus" class="status-msg">कोई फाइल सेलेक्ट नहीं</span>
+        <button id="clearAllBtn" style="background:#c7372f;">🗑️ सारा डाटा हटाएँ</button>
+    </div>
 
     <form id="entryForm">
         <div class="input-group"><span>देने वाला नाम</span><input type="text" id="name" placeholder="राम सिंह" required></div>
@@ -189,10 +235,11 @@
     <div class="action-buttons">
         <button id="exportExcelBtn" class="export-btn">📎 Excel डाउनलोड करें</button>
         <button id="exportPdfBtn" class="export-btn pdf-btn">🖨️ PDF सेव करें</button>
+        <button id="exportJsonBtn" class="json-export">📤 JSON (शेयर करें)</button>
     </div>
 
     <div id="ledgerContainer"></div>
-    <footer>✅ डाटा रिफ्रेश पर सुरक्षित | ✏️ एडिट बटन से सुधार करें | 📱 नंबर वाला कीपैड | 👕 कपड़ा (बिना यूनिट)</footer>
+    <footer>✅ डाटा रिफ्रेश पर सुरक्षित | ✏️ एडिट बटन से सुधार करें | 📤 JSON फाइल से किसी भी फोन में शेयर करें</footer>
 </div>
 
 <script>
@@ -200,7 +247,7 @@
     let editModeId = null;
 
     function loadData() {
-        const stored = localStorage.getItem("villageLedgerKapdaOnlyName");
+        const stored = localStorage.getItem("villageLedgerShareable");
         if(stored) {
             allEntries = JSON.parse(stored);
         } else {
@@ -215,7 +262,7 @@
     }
 
     function saveToLocal() {
-        localStorage.setItem("villageLedgerKapdaOnlyName", JSON.stringify(allEntries));
+        localStorage.setItem("villageLedgerShareable", JSON.stringify(allEntries));
     }
 
     function fillFormForEdit(entry) {
@@ -297,6 +344,89 @@
         }
     }
 
+    function clearAllData() {
+        if(confirm("⚠️ क्या आप सारा डाटा हटाना चाहते हैं? यह वापस नहीं आएगा!")) {
+            allEntries = [];
+            saveToLocal();
+            renderLedger();
+            document.getElementById('importStatus').innerHTML = "✅ सारा डाटा हटा दिया गया";
+            setTimeout(() => {
+                document.getElementById('importStatus').innerHTML = "कोई फाइल सेलेक्ट नहीं";
+            }, 2000);
+        }
+    }
+
+    // JSON Export (शेयर करने के लिए)
+    function exportToJSON() {
+        if(allEntries.length === 0) { alert("कोई डेटा नहीं है"); return; }
+        
+        const exportData = {
+            version: "1.0",
+            exportedOn: new Date().toISOString(),
+            data: allEntries
+        };
+        
+        const jsonStr = JSON.stringify(exportData, null, 2);
+        const blob = new Blob([jsonStr], {type: "application/json"});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `khata_data_${new Date().toISOString().slice(0,19)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        alert("📤 JSON फाइल बन गई! अब आप इसे WhatsApp, Email या किसी भी तरह से शेयर कर सकते हैं।");
+    }
+
+    // JSON Import (दूसरे फोन से लोड करने के लिए)
+    function importFromJSON(file) {
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            try {
+                const jsonData = JSON.parse(event.target.result);
+                let importedData;
+                
+                // चेक करें कि फाइल हमारे फॉर्मेट में है या सिर्फ array
+                if(jsonData.data && Array.isArray(jsonData.data)) {
+                    importedData = jsonData.data;
+                } else if(Array.isArray(jsonData)) {
+                    importedData = jsonData;
+                } else {
+                    throw new Error("फाइल का फॉर्मेट सही नहीं है");
+                }
+                
+                // हर एंट्री में id होनी चाहिए
+                importedData = importedData.map(entry => {
+                    if(!entry.id) {
+                        entry.id = Date.now().toString() + Math.random();
+                    }
+                    // पुराने डेटा में kapda न हो तो 0 करें
+                    if(entry.kapda === undefined) entry.kapda = 0;
+                    return entry;
+                });
+                
+                if(confirm(`${importedData.length} एंट्रियाँ मिलीं। क्या आप मौजूदा डाटा को इससे बदलना चाहते हैं?`)) {
+                    allEntries = importedData;
+                    saveToLocal();
+                    renderLedger();
+                    document.getElementById('importStatus').innerHTML = `✅ ${importedData.length} एंट्रियाँ लोड हो गईं`;
+                    setTimeout(() => {
+                        document.getElementById('importStatus').innerHTML = "कोई फाइल सेलेक्ट नहीं";
+                    }, 3000);
+                }
+            } catch(error) {
+                alert("फाइल पढ़ने में त्रुटि: " + error.message);
+                document.getElementById('importStatus').innerHTML = "❌ इम्पोर्ट फेल";
+            }
+        };
+        reader.onerror = function() {
+            alert("फाइल पढ़ने में त्रुटि");
+        };
+        reader.readAsText(file);
+    }
+
     function renderLedger() {
         const container = document.getElementById('ledgerContainer');
         if(!container) return;
@@ -359,7 +489,7 @@
                                 <button class="edit-btn" data-id="${entry.id}">✏️ एडिट</button>
                                 <button class="delete-btn" data-id="${entry.id}">❌ हटाएँ</button>
                             </td>
-                         </tr>`;
+                         <tr>`;
             });
             html += `<tr class="total-row">
                         <td colspan="3"><strong>📦 गाँव कुल योग</strong></td>
@@ -443,10 +573,21 @@
         }
     }
 
+    // फाइल सेलेक्ट इवेंट
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+        if(this.files && this.files[0]) {
+            document.getElementById('importStatus').innerHTML = "⏳ लोड हो रहा...";
+            importFromJSON(this.files[0]);
+            this.value = ''; // रीसेट करें ताकि दोबारा वही फाइल सेलेक्ट कर सकें
+        }
+    });
+
     document.getElementById('entryForm').addEventListener('submit', addOrUpdateEntry);
     document.getElementById('cancelEditBtn').addEventListener('click', cancelEdit);
     document.getElementById('exportExcelBtn').addEventListener('click', exportToExcel);
     document.getElementById('exportPdfBtn').addEventListener('click', exportToPDF);
+    document.getElementById('exportJsonBtn').addEventListener('click', exportToJSON);
+    document.getElementById('clearAllBtn').addEventListener('click', clearAllData);
     
     loadData();
     setDefaultDate();
