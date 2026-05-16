@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>गाँव-वार खाता बही (नंबर कीपैड + नाम पहले)</title>
+    <title>गाँव-वार खाता बही (दिनांक + नंबर कीपैड + नाम पहले)</title>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
@@ -17,7 +17,7 @@
             padding: 20px;
         }
         .container {
-            max-width: 1400px;
+            max-width: 1500px;
             margin: auto;
             background: white;
             padding: 20px;
@@ -40,7 +40,7 @@
             border-radius: 24px;
             display: flex;
             flex-wrap: wrap;
-            gap: 15px;
+            gap: 12px;
             align-items: end;
             margin-bottom: 35px;
         }
@@ -50,7 +50,7 @@
             gap: 6px;
             font-weight: bold;
             font-size: 14px;
-            min-width: 110px;
+            min-width: 100px;
         }
         input, select {
             padding: 8px 12px;
@@ -59,7 +59,6 @@
             font-size: 14px;
             background: white;
         }
-        /* नंबर इनपुट के लिए स्पिनर हटाएँ (optional) */
         input[type=number]::-webkit-inner-spin-button, 
         input[type=number]::-webkit-outer-spin-button {
             opacity: 0.5;
@@ -112,13 +111,14 @@
             border-collapse: collapse;
             background: white;
             border-radius: 18px;
-            overflow: hidden;
+            overflow-x: auto;
+            display: block;
         }
         th, td {
             border: 1px solid #c0d8b0;
             padding: 10px 6px;
             text-align: center;
-            font-size: 14px;
+            font-size: 13px;
         }
         th {
             background: #d4e8c7;
@@ -143,25 +143,25 @@
         @media (max-width: 850px) {
             .input-group { width: 100%; }
             form { flex-direction: column; }
+            th, td { font-size: 12px; padding: 6px 3px; }
         }
     </style>
 </head>
 <body>
 <div class="container">
     <h1>📒 गाँव-वार हिसाब बही</h1>
-    <div class="sub">🌾 चावल · दाल · आलू · गोभी · सब्जी (तमी) + पैसा (₹) | <strong>पहले नाम फिर गाँव</strong></div>
+    <div class="sub">🌾 चावल · दाल · आलू · गोभी · सब्जी (तमी) + पैसा (₹) + 📅 दिनांक</div>
 
     <form id="entryForm">
         <div class="input-group"><span>देने वाला नाम</span><input type="text" id="name" placeholder="राम सिंह" required></div>
         <div class="input-group"><span>गाँव का नाम</span><input type="text" id="village" placeholder="सोहावल" required></div>
+        <div class="input-group"><span>📅 दिनांक</span><input type="date" id="date" required></div>
         
-        <!-- सभी number inputs में inputmode="numeric" और type="number" -->
         <div class="input-group"><span>चावल (तमी)</span><input type="number" id="rice" step="any" value="0" inputmode="numeric"></div>
         <div class="input-group"><span>दाल (तमी)</span><input type="number" id="dal" step="any" value="0" inputmode="numeric"></div>
         <div class="input-group"><span>आलू (तमी)</span><input type="number" id="aloo" step="any" value="0" inputmode="numeric"></div>
         <div class="input-group"><span>गोभी (तमी)</span><input type="number" id="gobhi" step="any" value="0" inputmode="numeric"></div>
         <div class="input-group"><span>सब्जी (तमी)</span><input type="number" id="sabji" step="any" value="0" inputmode="numeric"></div>
-
         <div class="input-group"><span>दिया गया पैसा (₹)</span><input type="number" id="amount" step="any" required inputmode="numeric"></div>
         <button type="submit">✅ जोड़ें / अपडेट करें</button>
     </form>
@@ -172,36 +172,38 @@
     </div>
 
     <div id="ledgerContainer"></div>
-    <footer>✅ डाटा रिफ्रेश पर सुरक्षित | 📱 नंबर वाले बॉक्स पर कीपैड (मोबाइल) | नाम → गाँव क्रम</footer>
+    <footer>✅ डाटा रिफ्रेश पर सुरक्षित | 📱 नंबर वाले बॉक्स पर कीपैड | नाम → गाँव → दिनांक क्रम</footer>
 </div>
 
 <script>
-    // ---------- डाटा ----------
+    // ---------- डाटा (अब date भी शामिल) ----------
     let allEntries = [];
 
     function loadData() {
-        const stored = localStorage.getItem("villageLedgerNamedFirst");
+        const stored = localStorage.getItem("villageLedgerWithDate");
         if(stored) {
             allEntries = JSON.parse(stored);
         } else {
-            // डेमो डेटा (नाम पहले दिखाने के लिए)
+            // आज की तारीख डिफ़ॉल्ट के लिए
+            const today = new Date().toISOString().split('T')[0];
             allEntries = [
-                { id: "1", name: "राम सिंह", village: "सोहावल", rice: 12, dal: 6, aloo: 9, gobhi: 4, sabji: 7, amount: 1450 },
-                { id: "2", name: "श्याम पाल", village: "सोहावल", rice: 7, dal: 3, aloo: 5, gobhi: 2, sabji: 4, amount: 680 },
-                { id: "3", name: "गीता देवी", village: "रामपुर", rice: 15, dal: 8, aloo: 11, gobhi: 6, sabji: 9, amount: 2100 }
+                { id: "1", name: "राम सिंह", village: "सोहावल", date: today, rice: 12, dal: 6, aloo: 9, gobhi: 4, sabji: 7, amount: 1450 },
+                { id: "2", name: "श्याम पाल", village: "सोहावल", date: today, rice: 7, dal: 3, aloo: 5, gobhi: 2, sabji: 4, amount: 680 },
+                { id: "3", name: "गीता देवी", village: "रामपुर", date: today, rice: 15, dal: 8, aloo: 11, gobhi: 6, sabji: 9, amount: 2100 }
             ];
         }
         renderLedger();
     }
 
     function saveToLocal() {
-        localStorage.setItem("villageLedgerNamedFirst", JSON.stringify(allEntries));
+        localStorage.setItem("villageLedgerWithDate", JSON.stringify(allEntries));
     }
 
     function addOrUpdateEntry(e) {
         e.preventDefault();
         const name = document.getElementById('name').value.trim();
         const village = document.getElementById('village').value.trim();
+        const date = document.getElementById('date').value;
         const rice = parseFloat(document.getElementById('rice').value) || 0;
         const dal = parseFloat(document.getElementById('dal').value) || 0;
         const aloo = parseFloat(document.getElementById('aloo').value) || 0;
@@ -209,18 +211,21 @@
         const sabji = parseFloat(document.getElementById('sabji').value) || 0;
         const amount = parseFloat(document.getElementById('amount').value) || 0;
 
-        if(!name || !village) { alert("नाम और गाँव जरूर भरें"); return; }
+        if(!name || !village || !date) { alert("नाम, गाँव और दिनांक जरूर भरें"); return; }
 
-        const existingIndex = allEntries.findIndex(entry => entry.name === name && entry.village === village);
+        // unique key: name+village+date (ताकि एक ही दिन एक ही व्यक्ति की एक एंट्री रहे)
+        const existingIndex = allEntries.findIndex(entry => entry.name === name && entry.village === village && entry.date === date);
         if(existingIndex !== -1) {
             allEntries[existingIndex] = { ...allEntries[existingIndex], rice, dal, aloo, gobhi, sabji, amount };
         } else {
             const newId = Date.now().toString();
-            allEntries.push({ id: newId, name, village, rice, dal, aloo, gobhi, sabji, amount });
+            allEntries.push({ id: newId, name, village, date, rice, dal, aloo, gobhi, sabji, amount });
         }
         saveToLocal();
         renderLedger();
         document.getElementById('entryForm').reset();
+        // आज की तारीख डिफ़ॉल्ट सेट करने के लिए (optional)
+        document.getElementById('date').valueAsDate = new Date();
     }
 
     function deleteEntry(id) {
@@ -233,6 +238,7 @@
         const container = document.getElementById('ledgerContainer');
         if(!container) return;
 
+        // गाँव के हिसाब से ग्रुप करें
         const villageMap = new Map();
         allEntries.forEach(entry => {
             if(!villageMap.has(entry.village)) villageMap.set(entry.village, []);
@@ -254,22 +260,27 @@
 
             html += `<div class="village-card">
                         <div class="village-title">🏡 गाँव : ${escapeHtml(village)}</div>
+                        <div style="overflow-x: auto;">
                         <table>
                             <thead>
                                 <tr>
                                     <th>देने वाला नाम</th>
                                     <th>गाँव</th>
+                                    <th>📅 दिनांक</th>
                                     <th>चावल (तमी)</th><th>दाल (तमी)</th>
                                     <th>आलू (तमी)</th><th>गोभी (तमी)</th><th>सब्जी (तमी)</th>
                                     <th>दिया पैसा (₹)</th><th>हटाएँ</th>
                                 </tr>
                             </thead>
                             <tbody>`;
-            // यहाँ हर पंक्ति में नाम के बाद गाँव दिखेगा
+            
             entries.forEach(entry => {
+                // दिनांक को सुन्दर फॉर्मेट में दिखाएँ
+                const formattedDate = entry.date ? entry.date.split('-').reverse().join('-') : '';
                 html += `<tr>
                             <td>${escapeHtml(entry.name)}</td>
                             <td>${escapeHtml(entry.village)}</td>
+                            <td>${formattedDate}</td>
                             <td>${entry.rice}</td><td>${entry.dal}</td>
                             <td>${entry.aloo}</td><td>${entry.gobhi}</td>
                             <td>${entry.sabji}</td>
@@ -278,7 +289,7 @@
                          </tr>`;
             });
             html += `<tr class="total-row">
-                        <td colspan="2"><strong>📦 गाँव कुल योग</strong></td>
+                        <td colspan="3"><strong>📦 गाँव कुल योग</strong></td>
                         <td><strong>${totalRice}</strong></td><td><strong>${totalDal}</strong></td>
                         <td><strong>${totalAloo}</strong></td><td><strong>${totalGobhi}</strong></td>
                         <td><strong>${totalSabji}</strong></td>
@@ -286,6 +297,7 @@
                     </tr>
                             </tbody>
                         </table>
+                        </div>
                     </div><br>`;
         }
         container.innerHTML = html;
@@ -303,12 +315,13 @@
         });
     }
 
-    // Excel Export (नाम के बाद गाँव वाला क्रम)
+    // Excel Export (दिनांक सहित)
     function exportToExcel() {
         if(allEntries.length === 0) { alert("कोई डेटा नहीं"); return; }
         const excelData = allEntries.map(entry => ({
             "देने वाला नाम": entry.name,
             "गाँव का नाम": entry.village,
+            "दिनांक": entry.date,
             "चावल (तमी)": entry.rice,
             "दाल (तमी)": entry.dal,
             "आलू (तमी)": entry.aloo,
@@ -332,16 +345,26 @@
         pdfDiv.style.padding = "15px";
         pdfDiv.style.fontFamily = "Arial";
         pdfDiv.innerHTML = `<h2 style="text-align:center;">${title}</h2>
-                            <p style="text-align:center">तमी (मात्रा) + पैसा | दिनांक: ${new Date().toLocaleDateString()}</p><hr/>`;
+                            <p style="text-align:center">तमी (मात्रा) + पैसा + दिनांक | निर्माण: ${new Date().toLocaleString()}</p><hr/>`;
         pdfDiv.appendChild(clone);
         const opt = { margin: [0.5,0.5,0.5,0.5], filename: `hisab_${Date.now()}.pdf`, image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'in', format: 'a4', orientation: 'landscape' } };
         html2pdf().set(opt).from(pdfDiv).save();
     }
 
+    // आज की तारीख डिफ़ॉल्ट सेट करें
+    function setDefaultDate() {
+        const dateInput = document.getElementById('date');
+        if(dateInput && !dateInput.value) {
+            dateInput.valueAsDate = new Date();
+        }
+    }
+
     document.getElementById('entryForm').addEventListener('submit', addOrUpdateEntry);
     document.getElementById('exportExcelBtn').addEventListener('click', exportToExcel);
     document.getElementById('exportPdfBtn').addEventListener('click', exportToPDF);
+    
     loadData();
+    setDefaultDate();
 </script>
 </body>
 </html>
